@@ -549,6 +549,7 @@ export enum DatabaseLock {
 export enum SyncRequestType {
   UsersV1 = 'UsersV1',
   PartnersV1 = 'PartnersV1',
+  AssetsV1 = 'AssetsV1',
 }
 
 export enum SyncEntityType {
@@ -556,4 +557,6 @@ export enum SyncEntityType {
   UserDeleteV1 = 'UserDeleteV1',
   PartnerV1 = 'PartnerV1',
   PartnerDeleteV1 = 'PartnerDeleteV1',
+  AssetV1 = 'AssetV1',
+  AssetDeleteV1 = 'AssetDeleteV1',
 }

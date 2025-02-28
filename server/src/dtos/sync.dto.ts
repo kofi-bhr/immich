@@ -56,11 +56,22 @@ export class SyncPartnerDeleteV1 {
   sharedWithId!: string;
 }
 
+export class SyncAssetV1 {
+  id!: string;
+  ownerId!: string;
+}
+
+export class SyncAssetDeleteV1 {
+  assetId!: string;
+}
+
 export type SyncItem = {
   [SyncEntityType.UserV1]: SyncUserV1;
   [SyncEntityType.UserDeleteV1]: SyncUserDeleteV1;
   [SyncEntityType.PartnerV1]: SyncPartnerV1;
   [SyncEntityType.PartnerDeleteV1]: SyncPartnerDeleteV1;
+  [SyncEntityType.AssetV1]: SyncAssetV1;
+  [SyncEntityType.AssetDeleteV1]: SyncAssetDeleteV1;
 };
 
 const responseDtos = [
@@ -69,6 +80,8 @@ const responseDtos = [
   SyncUserDeleteV1,
   SyncPartnerV1,
   SyncPartnerDeleteV1,
+  SyncAssetV1,
+  SyncAssetDeleteV1,
 ];
 
 export const extraSyncModels = responseDtos;

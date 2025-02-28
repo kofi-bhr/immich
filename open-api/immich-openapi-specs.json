@@ -12049,12 +12049,40 @@
         ],
         "type": "object"
       },
+      "SyncAssetDeleteV1": {
+        "properties": {
+          "assetId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "assetId"
+        ],
+        "type": "object"
+      },
+      "SyncAssetV1": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ownerId"
+        ],
+        "type": "object"
+      },
       "SyncEntityType": {
         "enum": [
           "UserV1",
           "UserDeleteV1",
           "PartnerV1",
-          "PartnerDeleteV1"
+          "PartnerDeleteV1",
+          "AssetV1",
+          "AssetDeleteV1"
         ],
         "type": "string"
       },
@@ -12095,7 +12123,8 @@
       "SyncRequestType": {
         "enum": [
           "UsersV1",
-          "PartnersV1"
+          "PartnersV1",
+          "AssetsV1"
         ],
         "type": "string"
       },
