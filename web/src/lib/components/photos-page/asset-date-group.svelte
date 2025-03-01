@@ -18,16 +18,11 @@
     singleSelect: boolean;
     withStacked: boolean;
     showArchiveIcon: boolean;
-    assetGridElement: HTMLElement | undefined;
-    renderThumbsAtBottomMargin: string | undefined;
-    renderThumbsAtTopMargin: string | undefined;
     assetStore: AssetStore;
     bucket: AssetBucket;
     assetInteraction: AssetInteraction;
     absoluteHeight: number;
 
-    onScrollTarget: ScrollTargetListener | undefined;
-    onAssetInGrid: ((asset: AssetResponseDto) => void) | undefined;
     onSelect: ({ title, assets }: { title: string; assets: AssetResponseDto[] }) => void;
     onSelectAssets: (asset: AssetResponseDto) => void;
     onSelectAssetCandidates: (asset: AssetResponseDto | null) => void;
@@ -38,32 +33,24 @@
     singleSelect,
     withStacked,
     showArchiveIcon,
-    assetGridElement,
-    renderThumbsAtBottomMargin,
-    renderThumbsAtTopMargin,
     assetStore = $bindable(),
     bucket,
     assetInteraction,
-    onScrollTarget,
     onSelect,
     onSelectAssets,
     onSelectAssetCandidates,
   }: Props = $props();
 
-  const componentId = generateId();
-  const bucketDate = $derived(bucket.bucketDate);
   const dateGroups = $derived(bucket.dateGroups);
   const absoluteDateGroupHeights = $derived(bucket.absoluteDateGroupHeights);
   const absoluteDateGroupWidths = $derived(bucket.absoluteDateGroupWidths);
 
   const {
-    DATEGROUP: { INTERSECTION_ROOT_TOP, INTERSECTION_ROOT_BOTTOM, SMALL_GROUP_THRESHOLD },
+    DATEGROUP: { SMALL_GROUP_THRESHOLD },
   } = TUNABLES;
-  /* TODO figure out a way to calculate this*/
-  const TITLE_HEIGHT = 51;
 
   let isMouseOverGroup = $state(false);
-  let hoveredDateGroup = $state('');
+  let hoveredDateGroup = $state();
 
   const onClick = (assets: AssetResponseDto[], groupTitle: string, asset: AssetResponseDto) => {
     if (isSelectionMode || assetInteraction.selectionActive) {
@@ -71,13 +58,6 @@
       return;
     }
     void navigate({ targetRoute: 'current', assetId: asset.id });
-  };
-
-  const onRetrieveElement = (dateGroup: DateGroup, asset: AssetResponseDto, element: HTMLElement) => {
-    if (assetGridElement && onScrollTarget) {
-      const offset = findTotalOffset(element, assetGridElement) - TITLE_HEIGHT;
-      onScrollTarget({ bucket, dateGroup, asset, offset });
-    }
   };
 
   const handleSelectGroup = (title: string, assets: AssetResponseDto[]) => onSelect({ title, assets });
@@ -106,13 +86,7 @@
       onSelectAssetCandidates(asset);
     }
   };
-
-  onDestroy(() => {
-    assetStore.taskManager.removeAllTasksForComponent(componentId);
-  });
 </script>
-
-<div data-bucket={bucket.bucketDate} data-a={dateGroups.length}></div>
 
 {#each dateGroups as dateGroup, groupIndex (dateGroup.date)}
   {@const absoluteHeight = absoluteDateGroupHeights[groupIndex]}
@@ -130,22 +104,13 @@
       data-width={absoluteWidth}
       data-row={dateGroup.row}
       data-col={dateGroup.col}
-      onmouseenter={() =>
-        assetStore.taskManager.queueScrollSensitiveTask({
-          componentId,
-          task: () => {
-            isMouseOverGroup = true;
-            assetMouseEventHandler(dateGroup.groupTitle, null);
-          },
-        })}
+      onmouseenter={() => {
+        isMouseOverGroup = true;
+        assetMouseEventHandler(dateGroup.groupTitle, null);
+      }}
       onmouseleave={() => {
-        assetStore.taskManager.queueScrollSensitiveTask({
-          componentId,
-          task: () => {
-            isMouseOverGroup = false;
-            assetMouseEventHandler(dateGroup.groupTitle, null);
-          },
-        });
+        isMouseOverGroup = false;
+        assetMouseEventHandler(dateGroup.groupTitle, null);
       }}
     >
       <!-- Date group title -->
@@ -153,7 +118,7 @@
         class="flex z-[100] pt-[calc(1.75rem+1px)] pb-5 h-6 place-items-center text-xs font-medium text-immich-fg bg-immich-bg dark:bg-immich-dark-bg dark:text-immich-dark-fg md:text-sm"
         style:width={geometry.containerWidth + 'px'}
       >
-        {#if !singleSelect && ((hoveredDateGroup == dateGroup.groupTitle && isMouseOverGroup) || assetInteraction.selectedGroup.has(dateGroup.groupTitle))}
+        {#if !singleSelect && ((hoveredDateGroup === dateGroup.groupTitle && isMouseOverGroup) || assetInteraction.selectedGroup.has(dateGroup.groupTitle))}
           <div
             transition:fly={{ x: -24, duration: 200, opacity: 0.5 }}
             class="inline-block px-2 hover:cursor-pointer"
@@ -204,13 +169,6 @@
               <Thumbnail
                 {dateGroup}
                 {assetStore}
-                intersectionConfig={{
-                  root: assetGridElement,
-                  bottom: renderThumbsAtBottomMargin,
-                  top: renderThumbsAtTopMargin,
-                }}
-                retrieveElement={assetStore.pendingScrollAssetId === asset.id}
-                onRetrieveElement={(element) => onRetrieveElement(dateGroup, asset, element)}
                 showStackedIcon={withStacked}
                 {showArchiveIcon}
                 {asset}

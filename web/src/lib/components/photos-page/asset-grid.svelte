@@ -29,8 +29,7 @@
   import DeleteAssetDialog from './delete-asset-dialog.svelte';
 
   import { resizeObserver } from '$lib/actions/resize-observer';
-  import MeasureDateGroup from '$lib/components/photos-page/measure-date-group.svelte';
-  import { intersectionObserver } from '$lib/actions/intersection-observer';
+
   import Skeleton from '$lib/components/photos-page/skeleton.svelte';
   import { page } from '$app/stores';
   import type { UpdatePayload } from 'vite';
@@ -710,9 +709,7 @@
       e.preventDefault();
     }
   };
-  onDestroy(() => {
-    assetStore.taskManager.removeAllTasksForComponent(componentId);
-  });
+
   let isTrashEnabled = $derived($featureFlags.loaded && $featureFlags.trash);
   let isEmpty = $derived(assetStore.isInitialized && assetStore.buckets.length === 0);
   let idsSelectedAssets = $derived(assetInteraction.selectedAssetsArray.map(({ id }) => id));

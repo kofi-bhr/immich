@@ -1,6 +1,5 @@
 import { locale } from '$lib/stores/preferences.store';
 import { getKey } from '$lib/utils';
-import { AssetGridTaskManager } from '$lib/utils/asset-store-task-manager';
 import { generateId } from '$lib/utils/generate-id';
 import type { AssetGridRouteSearchParams } from '$lib/utils/navigation';
 import { emptyGeometry, fromLocalDateTime, splitBucketIntoDateGroups, type DateGroup } from '$lib/utils/timeline-util';
@@ -336,7 +335,6 @@ export class AssetStore {
    */
   initialized!: Promise<void>;
   initializedSignal: (() => void) | undefined;
-  taskManager = new AssetGridTaskManager(this);
   isInitialized = $state(false);
   timelineHeight = $state(0);
   buckets: AssetBucket[] = $state([]);
@@ -594,8 +592,6 @@ export class AssetStore {
     // performed right now, and will cause issues if
     // multiple updateOptions() calls are interleved.
     await this.initialized;
-    this.taskManager.destroy();
-    this.taskManager = new AssetGridTaskManager(this);
     this.isInitialized = false;
     this.initialized = new Promise<void>((resolve) => {
       this.initializedSignal = resolve;
@@ -606,7 +602,6 @@ export class AssetStore {
   }
 
   public destroy() {
-    this.taskManager.destroy();
     this.listeners = [];
     this.isInitialized = false;
   }
