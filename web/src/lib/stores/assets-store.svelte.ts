@@ -790,7 +790,7 @@ export class AssetStore {
       this.updateIntersections();
       this.timelineHeight = this.buckets.reduce((accumulator, b) => accumulator + b.bucketHeight, 0);
       bucket.loaded();
-      this.notifyListeners({ type: 'loaded', bucket });
+      // this.notifyListeners({ type: 'loaded', bucket });
     } catch (error) {
       /* eslint-disable-next-line  @typescript-eslint/no-explicit-any */
       if ((error as any).name === 'AbortError') {

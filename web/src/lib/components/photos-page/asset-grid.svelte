@@ -85,7 +85,6 @@
   // svelte-ignore non_reactive_update
   let safeViewport: ViewportXY = { width: 0, height: 0, x: 0, y: 0 };
 
-  const componentId = generateId();
   let element: HTMLElement | undefined = $state();
   let timelineElement: HTMLElement | undefined = $state();
   let showShortcuts = $state(false);
@@ -289,6 +288,7 @@
 
       element.scrollTop = offset;
     } else {
+      // debugger;
       const bucket = assetStore.buckets.find((b) => b.bucketDate === bucketDate);
       if (!bucket) {
         return;
@@ -296,30 +296,30 @@
       scrollToBucketAndOffset(bucket, bucketScrollPercent);
     }
   };
-  const onScrub = throttle(_onScrub, 16, { leading: false, trailing: true });
+  const onScrub = throttle(_onScrub, 32, { leading: false, trailing: true });
 
   const stopScrub: ScrubberListener = async (
     bucketDate: string | undefined,
     _scrollPercent: number,
     bucketScrollPercent: number,
   ) => {
-    if (!bucketDate || assetStore.timelineHeight < safeViewport.height * 2) {
-      // edge case - scroll limited due to size of content, must adjust - use use the overall percent instead
-      return;
-    }
-    const bucket = assetStore.buckets.find((b) => b.bucketDate === bucketDate);
-    if (!bucket) {
-      return;
-    }
-    if (bucket) {
-      const localLastIntersected = lastIntersectedBucketDate;
-      await assetStore.loadBucket(bucketDate, { preventCancel: true, pending: true });
-      await bucket.measuredPromise;
-      if (localLastIntersected === lastIntersectedBucketDate) {
-        // only scroll if use hasn't already scrolled away/somewher else
-        scrollToBucketAndOffset(bucket, bucketScrollPercent);
-      }
-    }
+    // if (!bucketDate || assetStore.timelineHeight < safeViewport.height * 2) {
+    //   // edge case - scroll limited due to size of content, must adjust - use use the overall percent instead
+    //   return;
+    // }
+    // const bucket = assetStore.buckets.find((b) => b.bucketDate === bucketDate);
+    // if (!bucket) {
+    //   return;
+    // }
+    // if (bucket) {
+    //   const localLastIntersected = lastIntersectedBucketDate;
+    //   await assetStore.loadBucket(bucketDate, { preventCancel: true, pending: true });
+    //   await bucket.measuredPromise;
+    //   if (localLastIntersected === lastIntersectedBucketDate) {
+    //     // only scroll if use hasn't already scrolled away/somewher else
+    //     scrollToBucketAndOffset(bucket, bucketScrollPercent);
+    //   }
+    // }
   };
 
   let scrollObserverTimer: NodeJS.Timeout;
@@ -788,17 +788,19 @@
   class="scrollbar-hidden h-full overflow-y-auto outline-none {isEmpty ? 'm-0' : 'ml-4 tall:ml-0 mr-[60px]'}"
   tabindex="-1"
   use:resizeObserver={({ width, height }) => {
-    if (!largeBucketMode && assetStore.maxBucketAssets >= LARGE_BUCKET_THRESHOLD) {
-      largeBucketMode = true;
-      // Each viewport update causes each asset to re-decode both the thumbhash and the thumbnail.
-      // This is because the thumbnail components are destroyed and re-mounted, possibly because of the intersection observer.
-      // For larger buckets, this can lead to freezing and a poor user experience.
-      // As a mitigation, we aggressively debounce the viewport update to reduce the number of these events.
-      updateViewport = debounce(() => assetStore.updateViewport(safeViewport), LARGE_BUCKET_DEBOUNCE_MS, {
-        leading: false,
-        trailing: true,
-      });
-    }
+    assetStore.updateViewport(safeViewport);
+
+    // if (!largeBucketMode && assetStore.maxBucketAssets >= LARGE_BUCKET_THRESHOLD) {
+    //   largeBucketMode = true;
+    //   // Each viewport update causes each asset to re-decode both the thumbhash and the thumbnail.
+    //   // This is because the thumbnail components are destroyed and re-mounted, possibly because of the intersection observer.
+    //   // For larger buckets, this can lead to freezing and a poor user experience.
+    //   // As a mitigation, we aggressively debounce the viewport update to reduce the number of these events.
+    //   updateViewport = debounce(() => assetStore.updateViewport(safeViewport), LARGE_BUCKET_DEBOUNCE_MS, {
+    //     leading: false,
+    //     trailing: true,
+    //   });
+    // }
 
     safeViewport = { width, height, x: safeViewport.x, y: safeViewport.y };
     updateSafeViewport();
@@ -832,7 +834,11 @@
       {@const display = bucket.intersecting || bucket === assetStore.pendingScrollBucket}
       {@const absoluteHeight = assetStore.absoluteBucketHeights[bucketIndex]}
 
-      {#if display}
+      {#if !bucket.isLoaded}
+        <div style:position="absolute" style:transform={`translate3d(0,${absoluteHeight}px,0)`} style:width="100%">
+          <Skeleton height={bucket.bucketHeight + 'px'} title={`${bucket.bucketDateFormattted}`} />
+        </div>
+      {:else if display}
         <div
           data-abs={absoluteHeight}
           class="bucket"
@@ -843,19 +849,17 @@
           style:transform={`translate3d(0,${absoluteHeight}px,0)`}
           style:width="100%"
         >
-          {#if display}
-            <AssetDateGroup
-              {withStacked}
-              {showArchiveIcon}
-              {assetInteraction}
-              {isSelectionMode}
-              {singleSelect}
-              {bucket}
-              onSelect={({ title, assets }) => handleGroupSelect(title, assets)}
-              onSelectAssetCandidates={handleSelectAssetCandidates}
-              onSelectAssets={handleSelectAssets}
-            />
-          {/if}
+          <AssetDateGroup
+            {withStacked}
+            {showArchiveIcon}
+            {assetInteraction}
+            {isSelectionMode}
+            {singleSelect}
+            {bucket}
+            onSelect={({ title, assets }) => handleGroupSelect(title, assets)}
+            onSelectAssetCandidates={handleSelectAssetCandidates}
+            onSelectAssets={handleSelectAssets}
+          />
         </div>
       {/if}
     {/each}
@@ -890,6 +894,9 @@
   }
 
   .bucket {
-    contain: layout size;
+    contain: layout size paint;
+    transform-style: flat;
+    backface-visibility: hidden;
+    transform-origin: center center;
   }
 </style>
