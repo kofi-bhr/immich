@@ -471,8 +471,6 @@ export class AssetStore {
         }
 
         this.loadBucket(bucket.bucketDate);
-
-        // console.log(bucket.bucketDate);
         const dateGroups = bucket.dateGroups;
         let v = 0;
 
@@ -489,7 +487,7 @@ export class AssetStore {
               group.assetsIntersecting[j] = false;
             }
           }
-          console.log(group.groupTitle, group.intersecting)
+
           group.intersecting = group.assetsIntersecting.some((i) => i === true);
           v++;
         }
@@ -736,7 +734,6 @@ export class AssetStore {
 
 
   async loadBucket(bucketDate: string, options: { preventCancel?: boolean; pending?: boolean } = {}): Promise<void> {
-    console.log('load', bucketDate)
     const bucket = this.getBucketByDate(bucketDate);
     if (!bucket) {
       return;

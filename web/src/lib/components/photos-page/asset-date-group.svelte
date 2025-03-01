@@ -136,7 +136,6 @@
         style:width={geometry.containerWidth + 'px'}
       >
         {#each dateGroup.assets as asset, i (asset.id)}
-          {@const isSmallGroup = dateGroup.assets.length <= SMALL_GROUP_THRESHOLD}
           <!-- getting these together here in this order is very cache-efficient -->
           {@const top = geometry.getTop(i)}
           {@const left = geometry.getLeft(i)}
