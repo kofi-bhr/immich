@@ -168,7 +168,7 @@
   {/if}
 
   {#if !isIntersectionEnabled || isIntersecting}
-    {#if !eagerThumbhash && !loaded && asset.thumbhash}
+    {#if !loaded && asset.thumbhash}
       <canvas
         use:thumbhash={{ base64ThumbHash: asset.thumbhash }}
         class="absolute object-cover z-10"

@@ -85,6 +85,7 @@ export class AssetBucket {
           top: height + position.top,
           bottom: height + position.top + position.height,
         });
+
       }
       positions.push(assets);
     }
@@ -476,6 +477,7 @@ export class AssetStore {
         let v = 0;
 
         for (const [h, group] of dateGroups.entries()) {
+
           const positions = bucket.dateGroupsAssetsAbsolutePositions[h];
           for (let j = 0; j < group.assets.length; j++) {
             const assetTop = positions[j].top;
@@ -487,6 +489,7 @@ export class AssetStore {
               group.assetsIntersecting[j] = false;
             }
           }
+          console.log(group.groupTitle, group.intersecting)
           group.intersecting = group.assetsIntersecting.some((i) => i === true);
           v++;
         }
@@ -655,7 +658,6 @@ export class AssetStore {
   }
 
   private updateGeometry(bucket: AssetBucket, invalidateHeight: boolean) {
-  private updateGeometry(bucket: AssetBucket, invalidateHeight: boolean) {
     if (invalidateHeight) {
       bucket.isBucketHeightActual = false;
       bucket.measured = false;
@@ -663,7 +665,6 @@ export class AssetStore {
         assetGroup.heightActual = false;
       }
     }
-
 
     const viewportWidth = this.viewport.width;
     if (!bucket.isBucketHeightActual) {
@@ -694,6 +695,7 @@ export class AssetStore {
 
     let dateGroupRow = 0;
     let dateGroupCol = 0;
+
 
     const rowSpaceRemaining: number[] = new Array(bucket.dateGroups.length)
     rowSpaceRemaining.fill(viewportWidth, 0, bucket.dateGroups.length);
@@ -734,7 +736,7 @@ export class AssetStore {
 
 
   async loadBucket(bucketDate: string, options: { preventCancel?: boolean; pending?: boolean } = {}): Promise<void> {
-
+    console.log('load', bucketDate)
     const bucket = this.getBucketByDate(bucketDate);
     if (!bucket) {
       return;
@@ -792,13 +794,18 @@ export class AssetStore {
           this.albumAssets.add(asset.id);
         }
       }
+
+      // Attention: setting loaded here, because updateGeometry will be a no-op if 
+      // the bucket isn't already loaded, Don't introduce any awaits between this call
+      // and the end of this function
+      bucket.loaded();
       bucket.assets = assets;
       bucket.dateGroups = splitBucketIntoDateGroups(bucket, get(locale));
       this.maxBucketAssets = Math.max(this.maxBucketAssets, assets.length);
       this.updateGeometry(bucket, true);
       this.updateIntersections();
       this.timelineHeight = this.buckets.reduce((accumulator, b) => accumulator + b.bucketHeight, 0);
-      bucket.loaded();
+
       // this.notifyListeners({ type: 'loaded', bucket });
     } catch (error) {
       /* eslint-disable-next-line  @typescript-eslint/no-explicit-any */

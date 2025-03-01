@@ -1,16 +1,13 @@
 <script lang="ts">
   import Icon from '$lib/components/elements/icon.svelte';
-  import Skeleton from '$lib/components/photos-page/skeleton.svelte';
+
   import { AssetBucket, type AssetStore, type Viewport } from '$lib/stores/assets-store.svelte';
   import { navigate } from '$lib/utils/navigation';
-  import { findTotalOffset, type DateGroup, type ScrollTargetListener } from '$lib/utils/timeline-util';
   import type { AssetResponseDto } from '@immich/sdk';
   import { mdiCheckCircle, mdiCircleOutline } from '@mdi/js';
-  import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
   import Thumbnail from '../assets/thumbnail/thumbnail.svelte';
-  import { TUNABLES } from '$lib/utils/tunables';
-  import { generateId } from '$lib/utils/generate-id';
+
   import type { AssetInteraction } from '$lib/stores/asset-interaction.svelte';
 
   interface Props {
@@ -42,10 +39,6 @@
   const dateGroups = $derived(bucket.dateGroups);
   const absoluteDateGroupHeights = $derived(bucket.absoluteDateGroupHeights);
   const absoluteDateGroupWidths = $derived(bucket.absoluteDateGroupWidths);
-
-  const {
-    DATEGROUP: { SMALL_GROUP_THRESHOLD },
-  } = TUNABLES;
 
   let isMouseOverGroup = $state(false);
   let hoveredDateGroup = $state();
@@ -179,7 +172,6 @@
                 disabled={assetStore.albumAssets.has(asset.id)}
                 thumbnailWidth={width}
                 thumbnailHeight={height}
-                eagerThumbhash={isSmallGroup}
               />
             </div>
           {/if}

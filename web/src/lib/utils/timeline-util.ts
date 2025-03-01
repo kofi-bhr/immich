@@ -85,9 +85,9 @@ export function formatGroupTitle(_date: DateTime): string {
   return date.toLocaleString(groupDateFormat);
 }
 
-type Geometry = ReturnType<typeof createJustifiedLayout> & {
-  containerWidth: number;
-};
+// type Geometry = ReturnType<typeof createJustifiedLayout> & {
+//   containerWidth: number;
+// };
 
 export const emptyGeometry = new JustifiedLayout(Float32Array.from([]), {
   rowHeight: 1,
@@ -95,7 +95,7 @@ export const emptyGeometry = new JustifiedLayout(Float32Array.from([]), {
   rowWidth: 1,
   spacing: 0,
 });
-]
+
 
 const formatDateGroupTitle = memoize(formatGroupTitle);
 

@@ -21,7 +21,7 @@
   import { TUNABLES } from '$lib/utils/tunables';
   import type { AlbumResponseDto, AssetResponseDto, PersonResponseDto } from '@immich/sdk';
   import { throttle } from 'lodash-es';
-  import { onDestroy, onMount, type Snippet } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import Portal from '../shared-components/portal/portal.svelte';
   import Scrubber from '../shared-components/scrubber/scrubber.svelte';
   import ShowShortcuts from '../shared-components/show-shortcuts.svelte';
@@ -33,10 +33,8 @@
   import Skeleton from '$lib/components/photos-page/skeleton.svelte';
   import { page } from '$app/stores';
   import type { UpdatePayload } from 'vite';
-  import { generateId } from '$lib/utils/generate-id';
   import { isTimelineScrolling } from '$lib/stores/timeline.store';
   import type { AssetInteraction } from '$lib/stores/asset-interaction.svelte';
-  import { fileUploadHandler } from '$lib/utils/file-uploader';
 
   interface Props {
     isSelectionMode?: boolean;
@@ -113,7 +111,7 @@
     },
   } = TUNABLES;
 
-  const completeNav = () => {
+  const completeNav = async () => {
     navigating = false;
     if (internalScroll) {
       internalScroll = false;
@@ -245,8 +243,6 @@
     }
     return offset;
   }
-  const _updateViewport = () => void $assetStore.updateViewport(safeViewport);
-  const updateViewport = throttle(_updateViewport, 16);
 
   const getMaxScrollPercent = () =>
     (assetStore.timelineHeight + bottomSectionHeight + topSectionHeight - safeViewport.height) /
@@ -289,7 +285,6 @@
 
       element.scrollTop = offset;
     } else {
-      // debugger;
       const bucket = assetStore.buckets.find((b) => b.bucketDate === bucketDate);
       if (!bucket) {
         return;
@@ -704,8 +699,6 @@
     }
   });
 
-  let largeBucketMode = false;
-  let updateViewport = debounce(() => assetStore.updateViewport(safeViewport), 8);
   let shortcutList = $derived(
     (() => {
       if ($isSearchEnabled || $showAssetViewer) {
@@ -789,6 +782,7 @@
   class="scrollbar-hidden h-full overflow-y-auto outline-none {isEmpty ? 'm-0' : 'ml-4 tall:ml-0 mr-[60px]'}"
   tabindex="-1"
   use:resizeObserver={({ width, height }) => {
+    updateSafeViewport();
     assetStore.updateViewport(safeViewport);
 
     // if (!largeBucketMode && assetStore.maxBucketAssets >= LARGE_BUCKET_THRESHOLD) {
@@ -803,10 +797,9 @@
     //   });
     // }
 
-    safeViewport = { width, height, x: safeViewport.x, y: safeViewport.y };
-    updateSafeViewport();
+    // safeViewport = { width, height, x: safeViewport.x, y: safeViewport.y };
 
-    void updateViewport();
+    // void updateViewport();
   }}
   bind:this={element}
   onscroll={() => ((assetStore.lastScrollTime = Date.now()), handleTimelineScroll(), updateSlidingWindow())}
