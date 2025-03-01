@@ -153,7 +153,7 @@ export class AssetBucket {
       this.canceledSignal = reject;
     }).catch(() =>
       // if no-one waits on complete, and its rejected a uncaught rejection message is logged.
-      // We this message with an empty reject handler, since waiting on a bucket is optional.
+      // We this message with an empty reject handler, since waiting on a bucket is optional. 
       void 0
     );
     this.measuredPromise = new Promise((resolve) => {
@@ -211,11 +211,8 @@ export class AssetBucket {
       return;
     }
     this.cancelToken?.abort();
-    try {
-      this.canceledSignal?.();
-    } catch (e) {
-      debugger;
-    }
+
+    this.canceledSignal?.();
     this.init();
   }
 
@@ -444,6 +441,10 @@ export class AssetStore {
   }
 
   updateIntersections() {
+    if (!this.initialized) {
+      return
+    }
+
     const heights = this.absoluteBucketHeights;
 
     let firstIntersected;
@@ -456,6 +457,7 @@ export class AssetStore {
       if (bucketTop < this.visibleWindow.bottom && bucketBottom > this.visibleWindow.top) {
         bucket.intersecting = true;
         if (!firstIntersected) {
+
           firstIntersected = bucket.bucketDate;
         }
 
@@ -574,6 +576,13 @@ export class AssetStore {
     );
 
     this.initialized = true;
+    // After initialization, we must layout at least the first bucket, or else it will be canceled 
+    // since the height of the first bucket is 0, which will not intersect with the sliding window
+    const firstBucket = this.buckets[0];
+    if (firstBucket) {
+      await this.loadBucket(firstBucket.bucketDate, { preventCancel: true });
+    }
+    this.updateViewportGeometry(false);
   }
 
   async updateOptions(options: AssetStoreOptions) {
@@ -592,10 +601,8 @@ export class AssetStore {
     this.taskManager = new AssetGridTaskManager(this);
     this.initialized = false;
     this.viewId = generateId();
-
     this.setOptions(options);
     await this.initialiazeTimeBuckets();
-    await this.initialLayout(true);
   }
 
   public destroy() {
@@ -616,10 +623,13 @@ export class AssetStore {
     // layout reflows.
     const changedWidth = this.viewport.width != viewport.width;
     this.viewport = { ...viewport };
-    await this.initialLayout(changedWidth);
+    await this.updateViewportGeometry(changedWidth);
   }
 
-  private async initialLayout(changedWidth: boolean) {
+  private async updateViewportGeometry(changedWidth: boolean) {
+    if (!this.initialized) {
+      return;
+    }
     for (const bucket of this.buckets) {
       this.updateGeometry(bucket, changedWidth);
     }
@@ -633,7 +643,7 @@ export class AssetStore {
         break;
       }
       height += bucket.bucketHeight;
-      loaders.push(this.loadBucket(bucket.bucketDate));
+      loaders.push(this.loadBucket(bucket.bucketDate, { preventCancel: true }));
     }
     await Promise.all(loaders);
     this.notifyListeners({ type: 'viewport' });
@@ -703,6 +713,7 @@ export class AssetStore {
 
 
   async loadBucket(bucketDate: string, options: { preventCancel?: boolean; pending?: boolean } = {}): Promise<void> {
+
     const bucket = this.getBucketByDate(bucketDate);
     if (!bucket) {
       return;
