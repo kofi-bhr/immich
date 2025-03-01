@@ -92,6 +92,7 @@ function _intersectionObserver(
   element: HTMLElement,
   properties: IntersectionObserverActionProperties,
 ) {
+
   configure(key, element, properties);
   return {
     update(properties: IntersectionObserverActionProperties) {

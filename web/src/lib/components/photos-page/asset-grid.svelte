@@ -37,6 +37,7 @@
   import { generateId } from '$lib/utils/generate-id';
   import { isTimelineScrolling } from '$lib/stores/timeline.store';
   import type { AssetInteraction } from '$lib/stores/asset-interaction.svelte';
+  import { fileUploadHandler } from '$lib/utils/file-uploader';
 
   interface Props {
     isSelectionMode?: boolean;
@@ -92,7 +93,7 @@
   let showSkeleton = $state(true);
   let internalScroll = false;
   let navigating = false;
-  let preMeasure: AssetBucket[] = $state([]);
+
   let lastIntersectedBucketDate: string | undefined;
   let scrubBucketPercent = $state(0);
   let scrubBucket: { bucketDate: string | undefined } | undefined = $state();
@@ -115,7 +116,7 @@
     },
   } = TUNABLES;
 
-  const completeNav = () => {
+  const completeNav = async () => {
     navigating = false;
     if (internalScroll) {
       internalScroll = false;
@@ -123,10 +124,17 @@
     }
 
     if ($gridScrollTarget?.at) {
-      void assetStore.scheduleScrollToAssetId($gridScrollTarget, () => {
+      const bucket = await assetStore.scheduleScrollToAssetId($gridScrollTarget, () => {
         element?.scrollTo({ top: 0 });
         showSkeleton = false;
       });
+      if (bucket) {
+        const height = bucket.findAssetAbsolutePosition($gridScrollTarget.at);
+        if (height) {
+          element?.scrollTo({ top: height });
+          showSkeleton = false;
+        }
+      }
     } else {
       element?.scrollTo({ top: 0 });
       showSkeleton = false;
@@ -191,7 +199,6 @@
     if (lastIntersectedBucketDate) {
       const currentIndex = assetStore.buckets.findIndex((b) => b.bucketDate === lastIntersectedBucketDate);
       const deltaIndex = assetStore.buckets.indexOf(adjustedBucket);
-
       if (deltaIndex < currentIndex) {
         element?.scrollBy(0, delta);
       }
@@ -208,10 +215,9 @@
 
   onMount(() => {
     updateSafeViewport();
-
     void assetStore
       .init({ bucketListener })
-      .then(() => (assetStore.connect(), assetStore.updateViewport(safeViewport)));
+      .then(() => (assetStore.connect(), assetStore.updateViewport(safeViewport), updateSlidingWindow()));
     if (!enableRouting) {
       showSkeleton = false;
     }
@@ -264,7 +270,6 @@
     if (!element) {
       return;
     }
-
     element.scrollTop = scrollTop;
   };
 
@@ -307,11 +312,14 @@
     if (!bucket) {
       return;
     }
-    if (bucket && !bucket.measured) {
-      preMeasure.push(bucket);
+    if (bucket) {
+      const localLastIntersected = lastIntersectedBucketDate;
       await assetStore.loadBucket(bucketDate, { preventCancel: true, pending: true });
       await bucket.measuredPromise;
-      scrollToBucketAndOffset(bucket, bucketScrollPercent);
+      if (localLastIntersected === lastIntersectedBucketDate) {
+        // only scroll if use hasn't already scrolled away/somewher else
+        scrollToBucketAndOffset(bucket, bucketScrollPercent);
+      }
     }
   };
 
@@ -379,6 +387,13 @@
       }
     }
   };
+
+  const updateSlidingWindow = () => {
+    const top = element?.scrollTop!;
+    const bottom = safeViewport.height + top;
+    assetStore.updateSlidingWindow({ topSectionHeight, top, bottom });
+  };
+
   const handleTimelineScroll = throttle(_handleTimelineScroll, 16, { leading: false, trailing: true });
 
   const _onAssetInGrid = async (asset: AssetResponseDto) => {
@@ -396,17 +411,7 @@
     ? throttle(_onAssetInGrid, 16, { leading: false, trailing: true })
     : () => void 0;
 
-  const onScrollTarget: ScrollTargetListener = ({ bucket, offset }) => {
-    element?.scrollTo({ top: offset });
-    if (!bucket.measured) {
-      preMeasure.push(bucket);
-    }
-    showSkeleton = false;
-    assetStore.clearPendingScroll();
-    // set intersecting true manually here, to reduce flicker that happens when
-    // clearing pending scroll, but the intersection observer hadn't yet had time to run
-    assetStore.updateBucket(bucket.bucketDate, { intersecting: true });
-  };
+  const onScrollTarget: ScrollTargetListener = ({ bucket, offset }) => {};
 
   const trashOrDelete = async (force: boolean = false) => {
     isShowDeleteConfirmation = false;
@@ -821,7 +826,7 @@
     void updateViewport();
   }}
   bind:this={element}
-  onscroll={() => ((assetStore.lastScrollTime = Date.now()), handleTimelineScroll())}
+  onscroll={() => ((assetStore.lastScrollTime = Date.now()), handleTimelineScroll(), updateSlidingWindow())}
 >
   <section
     use:resizeObserver={({ target, height }) => ((topSectionHeight = height), (topSectionOffset = target.offsetTop))}
@@ -840,67 +845,43 @@
     class:invisible={showSkeleton}
     style:height={assetStore.timelineHeight + 'px'}
   >
-    {#each assetStore.buckets as bucket (bucket.viewId)}
-      {@const isPremeasure = preMeasure.includes(bucket)}
-      {@const display = bucket.intersecting || bucket === assetStore.pendingScrollBucket || isPremeasure}
+    {#each assetStore.buckets as bucket, bucketIndex (bucket.viewId)}
+      {@const display = bucket.intersecting || bucket === assetStore.pendingScrollBucket}
+      {@const absoluteHeight = assetStore.absoluteBucketHeights[bucketIndex]}
 
-      <div
-        class="bucket"
-        style:overflow={bucket.measured ? 'visible' : 'clip'}
-        use:intersectionObserver={[
-          {
-            key: bucket.viewId,
-            onIntersect: () => handleIntersect(bucket),
-            onSeparate: () => handleSeparate(bucket),
-            top: BUCKET_INTERSECTION_ROOT_TOP,
-            bottom: BUCKET_INTERSECTION_ROOT_BOTTOM,
-            root: element,
-          },
-          {
-            key: bucket.viewId + '.bucketintersection',
-            onIntersect: () => (lastIntersectedBucketDate = bucket.bucketDate),
-            top: '0px',
-            bottom: '-' + (safeViewport.height - 1) + 'px',
-            left: '0px',
-            right: '0px',
-          },
-        ]}
-        data-bucket-display={bucket.intersecting}
-        data-bucket-date={bucket.bucketDate}
-        style:height={bucket.bucketHeight + 'px'}
-      >
-        {#if display && !bucket.measured}
-          <MeasureDateGroup
-            {bucket}
-            {assetStore}
-            onMeasured={() => (preMeasure = preMeasure.filter((b) => b !== bucket))}
-          ></MeasureDateGroup>
-        {/if}
-
-        {#if !display || !bucket.measured}
-          <Skeleton height={bucket.bucketHeight + 'px'} title={`${bucket.bucketDateFormattted}`} />
-        {/if}
-        {#if display && bucket.measured}
-          <AssetDateGroup
-            assetGridElement={element}
-            renderThumbsAtTopMargin={THUMBNAIL_INTERSECTION_ROOT_TOP}
-            renderThumbsAtBottomMargin={THUMBNAIL_INTERSECTION_ROOT_BOTTOM}
-            {withStacked}
-            {showArchiveIcon}
-            {assetStore}
-            {assetInteraction}
-            {isSelectionMode}
-            {singleSelect}
-            {onScrollTarget}
-            {onAssetInGrid}
-            {bucket}
-            viewport={safeViewport}
-            onSelect={({ title, assets }) => handleGroupSelect(title, assets)}
-            onSelectAssetCandidates={handleSelectAssetCandidates}
-            onSelectAssets={handleSelectAssets}
-          />
-        {/if}
-      </div>
+      {#if display}
+        <div
+          data-abs={absoluteHeight}
+          class="bucket"
+          data-bucket-display={bucket.intersecting}
+          data-bucket-date={bucket.bucketDate}
+          style:height={bucket.bucketHeight + 'px'}
+          style:position="absolute"
+          style:transform={`translate3d(0,${absoluteHeight}px,0)`}
+          style:width="100%"
+        >
+          {#if display}
+            <AssetDateGroup
+              assetGridElement={element}
+              renderThumbsAtTopMargin={THUMBNAIL_INTERSECTION_ROOT_TOP}
+              renderThumbsAtBottomMargin={THUMBNAIL_INTERSECTION_ROOT_BOTTOM}
+              {withStacked}
+              {showArchiveIcon}
+              {assetStore}
+              {assetInteraction}
+              {isSelectionMode}
+              {singleSelect}
+              {onScrollTarget}
+              {onAssetInGrid}
+              {bucket}
+              viewport={safeViewport}
+              onSelect={({ title, assets }) => handleGroupSelect(title, assets)}
+              onSelectAssetCandidates={handleSelectAssetCandidates}
+              onSelectAssets={handleSelectAssets}
+            />
+          {/if}
+        </div>
+      {/if}
     {/each}
     <div class="h-[60px]"></div>
   </section>
