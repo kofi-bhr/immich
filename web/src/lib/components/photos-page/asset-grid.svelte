@@ -714,7 +714,7 @@
     assetStore.taskManager.removeAllTasksForComponent(componentId);
   });
   let isTrashEnabled = $derived($featureFlags.loaded && $featureFlags.trash);
-  let isEmpty = $derived(assetStore.initialized && assetStore.buckets.length === 0);
+  let isEmpty = $derived(assetStore.isInitialized && assetStore.buckets.length === 0);
   let idsSelectedAssets = $derived(assetInteraction.selectedAssetsArray.map(({ id }) => id));
 
   $effect(() => {

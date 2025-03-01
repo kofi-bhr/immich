@@ -334,9 +334,10 @@ export class AssetStore {
   /**
    * A promise that resolves once the store is initialized.
    */
-  private complete!: Promise<void>;
+  initialized!: Promise<void>;
+  initializedSignal: (() => void) | undefined;
   taskManager = new AssetGridTaskManager(this);
-  initialized = $state(false);
+  isInitialized = $state(false);
   timelineHeight = $state(0);
   buckets: AssetBucket[] = $state([]);
   absoluteBucketHeights = $derived.by(() => {
@@ -366,13 +367,13 @@ export class AssetStore {
     options: AssetStoreOptions,
     private albumId?: string,
   ) {
-    this.setOptions(options);
+    this.setOptions();
+    this.updateOptions({ ...options });
   }
 
-  private setOptions(options: AssetStoreOptions) {
+  private setOptions(options?: AssetStoreOptions) {
     this.options = { ...options, size: TimeBucketSize.Month };
   }
-
 
   private addPendingChanges(...changes: PendingChange[]) {
     // prevent websocket events from happening before local client events
@@ -441,7 +442,7 @@ export class AssetStore {
   }
 
   updateIntersections() {
-    if (!this.initialized) {
+    if (!this.isInitialized) {
       return
     }
 
@@ -549,7 +550,7 @@ export class AssetStore {
     }
   }
   async init({ bucketListener }: { bucketListener?: BucketListener } = {}) {
-    if (this.initialized) {
+    if (this.isInitialized) {
       throw 'Can only init once';
     }
 
@@ -560,6 +561,7 @@ export class AssetStore {
     const { getJustifiedLayoutFromAssets } = await import('$lib/utils/layout-utils');
     this.getJustifiedLayoutFromAssets = getJustifiedLayoutFromAssets;
     await this.initialiazeTimeBuckets();
+
   }
 
   async initialiazeTimeBuckets() {
@@ -575,7 +577,7 @@ export class AssetStore {
       (bucket, index) => new AssetBucket({ index, store: this, bucketDate: bucket.timeBucket, initialCount: bucket.count }),
     );
 
-    this.initialized = true;
+    this.isInitialized = true;
     // After initialization, we must layout at least the first bucket, or else it will be canceled 
     // since the height of the first bucket is 0, which will not intersect with the sliding window
     const firstBucket = this.buckets[0];
@@ -583,23 +585,21 @@ export class AssetStore {
       await this.loadBucket(firstBucket.bucketDate, { preventCancel: true });
     }
     this.updateViewportGeometry(false);
+    this.initializedSignal?.();
   }
 
   async updateOptions(options: AssetStoreOptions) {
-    // Make sure to re-initialize if the personId changes
-    const needsReinitializing = this.options.personId !== options.personId;
-    if (!this.initialized && !needsReinitializing) {
-      this.setOptions(options);
-      return;
-    }
     // TODO: don't call updateObjects frequently after
     // init - cancelation of the initialize tasks isn't
     // performed right now, and will cause issues if
     // multiple updateOptions() calls are interleved.
-    await this.complete;
+    await this.initialized;
     this.taskManager.destroy();
     this.taskManager = new AssetGridTaskManager(this);
-    this.initialized = false;
+    this.isInitialized = false;
+    this.initialized = new Promise<void>((resolve) => {
+      this.initializedSignal = resolve;
+    });
     this.viewId = generateId();
     this.setOptions(options);
     await this.initialiazeTimeBuckets();
@@ -608,7 +608,7 @@ export class AssetStore {
   public destroy() {
     this.taskManager.destroy();
     this.listeners = [];
-    this.initialized = false;
+    this.isInitialized = false;
   }
 
   async updateViewport(viewport: Viewport, force?: boolean) {
@@ -618,7 +618,7 @@ export class AssetStore {
     if (!force && this.viewport.height === viewport.height && this.viewport.width === viewport.width) {
       return;
     }
-    await this.complete;
+    await this.initialized;
     // changing width invalidates the actual height, and needs to be remeasured, since width changes causes
     // layout reflows.
     const changedWidth = this.viewport.width != viewport.width;
@@ -627,7 +627,7 @@ export class AssetStore {
   }
 
   private async updateViewportGeometry(changedWidth: boolean) {
-    if (!this.initialized) {
+    if (!this.isInitialized) {
       return;
     }
     for (const bucket of this.buckets) {
@@ -934,7 +934,7 @@ export class AssetStore {
     try {
       const { at: assetId } = scrollTarget;
       if (assetId) {
-        await this.complete;
+        await this.initialized;
         return await this.findAndLoadBucketAsPending(assetId);
       }
     } catch {
