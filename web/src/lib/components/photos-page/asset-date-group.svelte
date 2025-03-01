@@ -18,10 +18,8 @@
     singleSelect: boolean;
     withStacked: boolean;
     showArchiveIcon: boolean;
-    assetStore: AssetStore;
     bucket: AssetBucket;
     assetInteraction: AssetInteraction;
-    absoluteHeight: number;
 
     onSelect: ({ title, assets }: { title: string; assets: AssetResponseDto[] }) => void;
     onSelectAssets: (asset: AssetResponseDto) => void;
@@ -33,7 +31,6 @@
     singleSelect,
     withStacked,
     showArchiveIcon,
-    assetStore = $bindable(),
     bucket,
     assetInteraction,
     onSelect,
@@ -41,6 +38,7 @@
     onSelectAssetCandidates,
   }: Props = $props();
 
+  const assetStore = $derived(bucket.store);
   const dateGroups = $derived(bucket.dateGroups);
   const absoluteDateGroupHeights = $derived(bucket.absoluteDateGroupHeights);
   const absoluteDateGroupWidths = $derived(bucket.absoluteDateGroupWidths);

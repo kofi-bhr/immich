@@ -13,6 +13,7 @@ import { handleError } from '../utils/handle-error';
 import { websocketEvents } from './websocket';
 import type { JustifiedLayout } from '@immich/justified-layout-wasm';
 
+
 type AssetApiGetTimeBucketsRequest = Parameters<typeof getTimeBuckets>[0];
 export type AssetStoreOptions = Omit<AssetApiGetTimeBucketsRequest, 'size'>;
 
@@ -340,7 +341,7 @@ export class AssetStore {
   buckets: AssetBucket[] = $state([]);
   absoluteBucketHeights = $derived.by(() => {
     const heights: number[] = [];
-    let cummulativeHeight = 0;
+    let cummulativeHeight = this.visibleWindow.topSectionHeight;
     for (const bucket of this.buckets) {
       heights.push(cummulativeHeight);
       cummulativeHeight += bucket.bucketHeight;
@@ -450,7 +451,7 @@ export class AssetStore {
 
     for (let i = 0; i < heights.length; i++) {
       const bucket = this.buckets[i];
-      const bucketTop = heights[i] + this.visibleWindow.topSectionHeight;
+      const bucketTop = heights[i];
       const bucketBottom = heights[i] + bucket.bucketHeight;
 
       if (bucketTop < this.visibleWindow.bottom && bucketBottom > this.visibleWindow.top) {
@@ -471,7 +472,8 @@ export class AssetStore {
           for (let j = 0; j < group.assets.length; j++) {
             const assetTop = positions[j].top;
             const assetBottom = positions[j].bottom;
-            if (assetBottom > this.visibleWindow.top && assetTop < this.visibleWindow.bottom) {
+
+            if ((assetBottom > this.visibleWindow.top) && assetTop < this.visibleWindow.bottom) {
               group.assetsIntersecting[j] = true;
             } else {
               group.assetsIntersecting[j] = false;
@@ -662,8 +664,11 @@ export class AssetStore {
 
       this.setBucketHeight(bucket, height, false);
     }
+
     if (bucket.isLoaded) {
       bucket.isBucketHeightActual = true;
+    } else {
+      return;
     }
 
     const layoutOptions = {
@@ -672,6 +677,11 @@ export class AssetStore {
       rowHeight: 235,
       rowWidth: Math.floor(viewportWidth),
     };
+
+
+    let cummulativeHeight = 0;
+    let lastRowHeight = 0;
+    let lastRow = 0;
 
     let dateGroupRow = 0;
     let dateGroupCol = 0;
@@ -691,7 +701,6 @@ export class AssetStore {
         rowSpaceRemaining[dateGroupRow] -= GAP;
       }
       if (rowSpaceRemaining[dateGroupRow] >= 0) {
-
         assetGroup.row = dateGroupRow;
         assetGroup.col = dateGroupCol;
         dateGroupCol++
@@ -702,8 +711,16 @@ export class AssetStore {
         assetGroup.col = dateGroupCol;
         rowSpaceRemaining[dateGroupRow] -= assetGroup.geometry.containerWidth;
         dateGroupCol++;
+        cummulativeHeight += lastRowHeight;
+        lastRow = assetGroup.row - 1;
       }
+      lastRowHeight = assetGroup.geometry.containerHeight + HEADER;
+      assetGroup.height = assetGroup.geometry.containerHeight;
     }
+    if (lastRow !== bucket.dateGroups[bucket.dateGroups.length - 1].row) {
+      cummulativeHeight += lastRowHeight;
+    }
+    bucket.bucketHeight = cummulativeHeight;
   }
 
 

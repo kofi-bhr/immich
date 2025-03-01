@@ -208,7 +208,7 @@
     const { type } = event;
     if (type === 'bucket-height') {
       const { bucket, delta } = event;
-      scrollTolastIntersectedBucket(bucket, delta);
+      // scrollTolastIntersectedBucket(bucket, delta);
     }
   };
 
@@ -463,23 +463,6 @@
       assetInteraction.selectAsset(asset);
     }
   };
-
-  function handleIntersect(bucket: AssetBucket) {
-    // updateLastIntersectedBucketDate();
-    const task = () => {
-      assetStore.updateBucket(bucket.bucketDate, { intersecting: true });
-      void assetStore.loadBucket(bucket.bucketDate);
-    };
-    assetStore.taskManager.intersectedBucket(componentId, bucket, task);
-  }
-
-  function handleSeparate(bucket: AssetBucket) {
-    const task = () => {
-      assetStore.updateBucket(bucket.bucketDate, { intersecting: false });
-      bucket.cancel();
-    };
-    assetStore.taskManager.separatedBucket(componentId, bucket, task);
-  }
 
   const handlePrevious = async () => {
     const previousAsset = await assetStore.getPreviousAsset($viewingAsset);
@@ -826,22 +809,25 @@
   onscroll={() => ((assetStore.lastScrollTime = Date.now()), handleTimelineScroll(), updateSlidingWindow())}
 >
   <section
-    use:resizeObserver={({ target, height }) => ((topSectionHeight = height), (topSectionOffset = target.offsetTop))}
-    class:invisible={showSkeleton}
-  >
-    {@render children?.()}
-    {#if isEmpty}
-      <!-- (optional) empty placeholder -->
-      {@render empty?.()}
-    {/if}
-  </section>
-
-  <section
     bind:this={timelineElement}
     id="virtual-timeline"
     class:invisible={showSkeleton}
-    style:height={assetStore.timelineHeight + 'px'}
+    style:height={assetStore.timelineHeight + 500 + 'px'}
   >
+    <section
+      use:resizeObserver={({ target, height }) => ((topSectionHeight = height), (topSectionOffset = target.offsetTop))}
+      class:invisible={showSkeleton}
+      style:position="absolute"
+      style:left="0"
+      style:right="0"
+    >
+      {@render children?.()}
+      {#if isEmpty}
+        <!-- (optional) empty placeholder -->
+        {@render empty?.()}
+      {/if}
+    </section>
+
     {#each assetStore.buckets as bucket, bucketIndex (bucket.viewId)}
       {@const display = bucket.intersecting || bucket === assetStore.pendingScrollBucket}
       {@const absoluteHeight = assetStore.absoluteBucketHeights[bucketIndex]}
@@ -859,19 +845,12 @@
         >
           {#if display}
             <AssetDateGroup
-              assetGridElement={element}
-              renderThumbsAtTopMargin={THUMBNAIL_INTERSECTION_ROOT_TOP}
-              renderThumbsAtBottomMargin={THUMBNAIL_INTERSECTION_ROOT_BOTTOM}
               {withStacked}
               {showArchiveIcon}
-              {assetStore}
               {assetInteraction}
               {isSelectionMode}
               {singleSelect}
-              {onScrollTarget}
-              {onAssetInGrid}
               {bucket}
-              viewport={safeViewport}
               onSelect={({ title, assets }) => handleGroupSelect(title, assets)}
               onSelectAssetCandidates={handleSelectAssetCandidates}
               onSelectAssets={handleSelectAssets}
@@ -880,7 +859,7 @@
         </div>
       {/if}
     {/each}
-    <div class="h-[60px]"></div>
+    <!-- <div class="h-[60px]" style:position="absolute" style:left="0" style:right="0" style:bottom="0"></div> -->
   </section>
 </section>
 
