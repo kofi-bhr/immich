@@ -39,7 +39,6 @@
     thumbnailSize?: number | undefined;
     thumbnailWidth?: number | undefined;
     thumbnailHeight?: number | undefined;
-    eagerThumbhash?: boolean;
     selected?: boolean;
     selectionCandidate?: boolean;
     disabled?: boolean;
@@ -69,7 +68,6 @@
     thumbnailSize = undefined,
     thumbnailWidth = undefined,
     thumbnailHeight = undefined,
-    eagerThumbhash = true,
     selected = false,
     selectionCandidate = false,
     disabled = false,
@@ -159,11 +157,7 @@
     ? 'bg-gray-300'
     : 'bg-immich-primary/20 dark:bg-immich-dark-primary/20'}"
 >
-  <!-- TODO: Rendering thumbhashes for offscreen assets is a ton of overhead.
-             This is here to ensure thumbhashes appear on the first 
-             frame instead of a gray box for smaller date groups,
-             where the overhead (while wasteful) does not cause major issues. -->
-  {#if eagerThumbhash && !loaded && asset.thumbhash}
+  {#if !loaded && asset.thumbhash}
     <canvas
       use:thumbhash={{ base64ThumbHash: asset.thumbhash }}
       class="absolute object-cover z-10"
@@ -308,7 +302,7 @@
               enablePlayback={mouseOver && $playVideoThumbnailOnHover}
               curve={selected}
               durationInSeconds={timeToSeconds(asset.duration)}
-              playbackOnIconHover
+              playbackOnIconHover={!$playVideoThumbnailOnHover}
             />
           </div>
         {/if}

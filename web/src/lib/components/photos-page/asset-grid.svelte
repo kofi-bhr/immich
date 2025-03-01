@@ -20,7 +20,7 @@
   } from '$lib/utils/timeline-util';
   import { TUNABLES } from '$lib/utils/tunables';
   import type { AlbumResponseDto, AssetResponseDto, PersonResponseDto } from '@immich/sdk';
-  import { debounce, throttle } from 'lodash-es';
+  import { throttle } from 'lodash-es';
   import { onDestroy, onMount, type Snippet } from 'svelte';
   import Portal from '../shared-components/portal/portal.svelte';
   import Scrubber from '../shared-components/scrubber/scrubber.svelte';
@@ -81,9 +81,8 @@
 
   let { isViewing: showAssetViewer, asset: viewingAsset, preloadAssets, gridScrollTarget } = assetViewingStore;
 
-  // this does *not* need to be reactive and making it reactive causes expensive repeated updates
-  // svelte-ignore non_reactive_update
-  let safeViewport: ViewportXY = { width: 0, height: 0, x: 0, y: 0 };
+  const viewport: ViewportXY = $state({ width: 0, height: 0, x: 0, y: 0 });
+  const safeViewport: ViewportXY = $state({ width: 0, height: 0, x: 0, y: 0 });
 
   let element: HTMLElement | undefined = $state();
   let timelineElement: HTMLElement | undefined = $state();
@@ -103,7 +102,7 @@
   let leadout = $state(false);
 
   const {
-    ASSET_GRID: { NAVIGATE_ON_ASSET_IN_VIEW, LARGE_BUCKET_THRESHOLD, LARGE_BUCKET_DEBOUNCE_MS },
+    ASSET_GRID: { NAVIGATE_ON_ASSET_IN_VIEW },
     BUCKET: {
       INTERSECTION_ROOT_TOP: BUCKET_INTERSECTION_ROOT_TOP,
       INTERSECTION_ROOT_BOTTOM: BUCKET_INTERSECTION_ROOT_BOTTOM,
@@ -114,7 +113,7 @@
     },
   } = TUNABLES;
 
-  const completeNav = async () => {
+  const completeNav = () => {
     navigating = false;
     if (internalScroll) {
       internalScroll = false;
@@ -246,6 +245,8 @@
     }
     return offset;
   }
+  const _updateViewport = () => void $assetStore.updateViewport(safeViewport);
+  const updateViewport = throttle(_updateViewport, 16);
 
   const getMaxScrollPercent = () =>
     (assetStore.timelineHeight + bottomSectionHeight + topSectionHeight - safeViewport.height) /

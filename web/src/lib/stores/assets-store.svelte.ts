@@ -4,6 +4,7 @@ import { generateId } from '$lib/utils/generate-id';
 import type { AssetGridRouteSearchParams } from '$lib/utils/navigation';
 import { emptyGeometry, fromLocalDateTime, splitBucketIntoDateGroups, type DateGroup } from '$lib/utils/timeline-util';
 import { TimeBucketSize, getAssetInfo, getTimeBucket, getTimeBuckets, type AssetResponseDto } from '@immich/sdk';
+import createJustifiedLayout from 'justified-layout';
 import { throttle } from 'lodash-es';
 import { DateTime } from 'luxon';
 import { t } from 'svelte-i18n';
@@ -16,6 +17,13 @@ import type { JustifiedLayout } from '@immich/justified-layout-wasm';
 
 type AssetApiGetTimeBucketsRequest = Parameters<typeof getTimeBuckets>[0];
 export type AssetStoreOptions = Omit<AssetApiGetTimeBucketsRequest, 'size'>;
+
+const LAYOUT_OPTIONS = {
+  boxSpacing: 2,
+  containerPadding: 0,
+  targetRowHeightTolerance: 0.15,
+  targetRowHeight: 235,
+};
 
 export interface Viewport {
   width: number;
@@ -647,6 +655,7 @@ export class AssetStore {
   }
 
   private updateGeometry(bucket: AssetBucket, invalidateHeight: boolean) {
+  private updateGeometry(bucket: AssetBucket, invalidateHeight: boolean) {
     if (invalidateHeight) {
       bucket.isBucketHeightActual = false;
       bucket.measured = false;
@@ -691,7 +700,7 @@ export class AssetStore {
     for (const assetGroup of bucket.dateGroups) {
       if (!assetGroup.heightActual) {
         const unwrappedWidth = (3 / 2) * assetGroup.assets.length * THUMBNAIL_HEIGHT * (7 / 10);
-        const rows = Math.ceil(unwrappedWidth / viewportWidth);
+        const rows = Math.ceil(unwrappedWidth / this.viewport.width);
         const height = rows * THUMBNAIL_HEIGHT;
         assetGroup.height = height;
       }
