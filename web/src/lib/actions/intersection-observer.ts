@@ -93,7 +93,6 @@ function configure(key: HTMLElement | string, element: HTMLElement, properties: 
     elementToConfig.set(key, properties);
     observe(key, element, properties);
   }
-
 }
 
 function _intersectionObserver(
@@ -101,7 +100,6 @@ function _intersectionObserver(
   element: HTMLElement,
   properties: IntersectionObserverActionProperties,
 ) {
-
   configure(key, element, properties);
   return {
     update(properties: IntersectionObserverActionProperties) {

@@ -96,7 +96,6 @@ export const emptyGeometry = new JustifiedLayout(Float32Array.from([]), {
   spacing: 0,
 });
 
-
 const formatDateGroupTitle = memoize(formatGroupTitle);
 
 export function splitBucketIntoDateGroups(bucket: AssetBucket, locale: string | undefined): DateGroup[] {

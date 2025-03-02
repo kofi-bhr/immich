@@ -5,7 +5,7 @@
   import Thumbnail from '$lib/components/assets/thumbnail/thumbnail.svelte';
   import { AppRoute, AssetAction } from '$lib/constants';
   import { assetViewingStore } from '$lib/stores/asset-viewing.store';
-  import type { Viewport } from '$lib/stores/assets.store';
+  import type { Viewport } from '$lib/stores/assets-store.svelte';
   import { showDeleteModal } from '$lib/stores/preferences.store';
   import { deleteAssets } from '$lib/utils/actions';
   import { archiveAssets, cancelMultiselect, getAssetRatio } from '$lib/utils/asset-utils';
@@ -22,6 +22,8 @@
   import { handlePromiseError } from '$lib/utils';
   import DeleteAssetDialog from '../../photos-page/delete-asset-dialog.svelte';
   import type { AssetInteraction } from '$lib/stores/asset-interaction.svelte';
+  import { resizeObserver } from '$lib/actions/resize-observer';
+  import { debounce } from 'lodash-es';
 
   interface Props {
     assets: AssetResponseDto[];
@@ -53,11 +55,88 @@
 
   let { isViewing: isViewerOpen, asset: viewingAsset, setAsset } = assetViewingStore;
 
+  let layoututils = import('$lib/utils/layout-utils');
+  let geometry = $state();
+
+  $effect(() => {
+    const _assets = assets;
+    updateSlidingWindow();
+    layoututils.then(({ getJustifiedLayoutFromAssets }) => {
+      geometry = getJustifiedLayoutFromAssets(_assets, {
+        spacing: 2,
+        heightTolerance: 0.15,
+        rowHeight: 235,
+        rowWidth: Math.floor(viewport.width),
+      });
+    });
+  });
+
+  let assetLayouts = $derived.by(() => {
+    const assetLayout = [];
+    let containerHeight = 0;
+    let containerWidth = 0;
+    if (geometry) {
+      containerHeight = geometry.containerHeight;
+      containerWidth = geometry.containerWidth;
+      for (let i = 0; i < assets.length; i++) {
+        const asset = assets[i];
+
+        const layout = {
+          asset,
+          top: geometry.getTop(i),
+          left: geometry.getLeft(i),
+          width: geometry.getWidth(i),
+          height: geometry.getHeight(i),
+        };
+        // 54 is the content height of the asset-selection-app-bar
+        const layoutTopWithOffset = layout.top + 54;
+        const layoutBottom = layoutTopWithOffset + layout.height;
+
+        const display = layoutTopWithOffset < slidingWindow.bottom && layoutBottom > slidingWindow.top;
+        assetLayout.push({ ...layout, display });
+      }
+    }
+
+    return {
+      assetLayout,
+      containerHeight,
+      containerWidth,
+    };
+  });
+
   let showShortcuts = $state(false);
   let currentViewAssetIndex = 0;
   let shiftKeyIsDown = $state(false);
   let lastAssetMouseEvent: AssetResponseDto | null = $state(null);
+  let slidingWindow = $state({ top: 0, bottom: 0 });
 
+  const updateSlidingWindow = () => {
+    const v = $state.snapshot(viewport);
+    const top = document.scrollingElement?.scrollTop || 0;
+    const bottom = top + v.height;
+    const w = {
+      top,
+      bottom,
+    };
+    slidingWindow = w;
+  };
+  const debouncedOnIntersected = debounce(() => onIntersected?.(), 750, { maxWait: 100, leading: true });
+
+  let lastIntersectedHeight = 0;
+  $effect(() => {
+    // notify we got to (near) the end of scroll
+    const scrollPercentage =
+      ((slidingWindow.bottom - viewport.height) / (viewport.height - (document.scrollingElement?.clientHeight || 0))) *
+      100;
+
+    if (scrollPercentage > 90) {
+      const intersectedHeight = geometry?.containerHeight || 0;
+      if (lastIntersectedHeight !== intersectedHeight) {
+        debouncedOnIntersected();
+        lastIntersectedHeight = intersectedHeight;
+      }
+    }
+  });
   const viewAssetHandler = async (asset: AssetResponseDto) => {
     currentViewAssetIndex = assets.findIndex((a) => a.id == asset.id);
     setAsset(assets[currentViewAssetIndex]);
@@ -309,16 +388,6 @@
   let isTrashEnabled = $derived($featureFlags.loaded && $featureFlags.trash);
   let idsSelectedAssets = $derived(assetInteraction.selectedAssetsArray.map(({ id }) => id));
 
-  let geometry = $derived.by(async () => {
-    const { getJustifiedLayoutFromAssets } = await import('$lib/utils/layout-utils');
-    return getJustifiedLayoutFromAssets(assets, {
-      spacing: 2,
-      heightTolerance: 0.15,
-      rowHeight: 235,
-      rowWidth: Math.floor(viewport.width),
-    });
-  });
-
   $effect(() => {
     if (!lastAssetMouseEvent) {
       assetInteraction.clearAssetSelectionCandidates();
@@ -338,7 +407,13 @@
   });
 </script>
 
-<svelte:window onkeydown={onKeyDown} onkeyup={onKeyUp} onselectstart={onSelectStart} use:shortcuts={shortcutList} />
+<svelte:window
+  onkeydown={onKeyDown}
+  onkeyup={onKeyUp}
+  onselectstart={onSelectStart}
+  use:shortcuts={shortcutList}
+  onscroll={() => updateSlidingWindow()}
+/>
 
 {#if isShowDeleteConfirmation}
   <DeleteAssetDialog
@@ -353,17 +428,16 @@
 {/if}
 
 {#if assets.length > 0}
-  {#await geometry then geometry}
-    <div class="relative" style="height: {geometry.containerHeight}px;width: {geometry.containerWidth}px ">
-      {#each assets as asset, i}
-        {@const top = geometry.getTop(i)}
-        {@const left = geometry.getLeft(i)}
-        {@const width = geometry.getWidth(i)}
-        {@const height = geometry.getHeight(i)}
+  <div id="asd" style="height: {assetLayouts.containerHeight}px;width: {assetLayouts.containerWidth - 1}px">
+    {#each assetLayouts.assetLayout as layout}
+      {@const asset = layout.asset}
 
+      {#if layout.display}
         <div
+          data-display={layout.display}
           class="absolute"
-          style="width: {width}px; height: {height}px; top: {top}px; left: {left}px"
+          style:overflow="clip"
+          style="width: {layout.width}px; height: {layout.height}px; top: {layout.top}px; left: {layout.left}px"
           title={showAssetName ? asset.originalFileName : ''}
         >
           <Thumbnail
@@ -377,13 +451,12 @@
             }}
             onSelect={(asset) => handleSelectAssets(asset)}
             onMouseEvent={() => assetMouseEventHandler(asset)}
-            onIntersected={() => (i === Math.max(1, assets.length - 7) ? onIntersected?.() : void 0)}
             {showArchiveIcon}
             {asset}
             selected={assetInteraction.selectedAssets.has(asset)}
             selectionCandidate={assetInteraction.assetSelectionCandidates.has(asset)}
-            thumbnailWidth={width}
-            thumbnailHeight={height}
+            thumbnailWidth={layout.width}
+            thumbnailHeight={layout.height}
           />
           {#if showAssetName}
             <div
@@ -393,9 +466,9 @@
             </div>
           {/if}
         </div>
-      {/each}
-    </div>
-  {/await}
+      {/if}
+    {/each}
+  </div>
 {/if}
 
 <!-- Overlay Asset Viewer -->
