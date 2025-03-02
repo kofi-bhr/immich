@@ -4,7 +4,6 @@ import { generateId } from '$lib/utils/generate-id';
 import type { GetJustifiedLayout } from '$lib/utils/layout-utils';
 import type { AssetGridRouteSearchParams } from '$lib/utils/navigation';
 import { fromLocalDateTime, splitBucketIntoDateGroups, type DateGroup } from '$lib/utils/timeline-util';
-import type { JustifiedLayout } from '@immich/justified-layout-wasm';
 import { TimeBucketSize, getAssetInfo, getTimeBucket, getTimeBuckets, type AssetResponseDto } from '@immich/sdk';
 import { throttle } from 'lodash-es';
 import { DateTime } from 'luxon';
@@ -640,7 +639,6 @@ export class AssetStore {
         assetGroup.heightActual = false;
       }
     }
-
     const viewportWidth = this.viewport.width;
     if (!bucket.isBucketHeightActual) {
       const unwrappedWidth = (3 / 2) * bucket.bucketCount * THUMBNAIL_HEIGHT * (7 / 10);
