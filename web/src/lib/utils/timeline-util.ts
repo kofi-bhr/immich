@@ -2,7 +2,7 @@ import type { AssetBucket } from '$lib/stores/assets-store.svelte';
 import { locale } from '$lib/stores/preferences.store';
 import { JustifiedLayout } from '@immich/justified-layout-wasm';
 import type { AssetResponseDto } from '@immich/sdk';
-import type createJustifiedLayout from 'justified-layout';
+import type { Adapter } from '@sveltejs/kit';
 import { groupBy, memoize, sortBy } from 'lodash-es';
 import { DateTime } from 'luxon';
 import { get } from 'svelte/store';
@@ -19,7 +19,7 @@ export type DateGroup = {
   height: number;
   heightActual: boolean;
   intersecting: boolean;
-  geometry: JustifiedLayout;
+  geometry: JustifiedLayout | Adapter;
 };
 export type ScrubberListener = (
   bucketDate: string | undefined,
@@ -84,10 +84,6 @@ export function formatGroupTitle(_date: DateTime): string {
 
   return date.toLocaleString(groupDateFormat);
 }
-
-// type Geometry = ReturnType<typeof createJustifiedLayout> & {
-//   containerWidth: number;
-// };
 
 export const emptyGeometry = new JustifiedLayout(Float32Array.from([]), {
   rowHeight: 1,

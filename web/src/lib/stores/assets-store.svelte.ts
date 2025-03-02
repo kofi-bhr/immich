@@ -3,10 +3,9 @@ import { getKey } from '$lib/utils';
 import { generateId } from '$lib/utils/generate-id';
 import type { GetJustifiedLayout } from '$lib/utils/layout-utils';
 import type { AssetGridRouteSearchParams } from '$lib/utils/navigation';
-import { emptyGeometry, fromLocalDateTime, splitBucketIntoDateGroups, type DateGroup } from '$lib/utils/timeline-util';
+import { fromLocalDateTime, splitBucketIntoDateGroups, type DateGroup } from '$lib/utils/timeline-util';
 import type { JustifiedLayout } from '@immich/justified-layout-wasm';
 import { TimeBucketSize, getAssetInfo, getTimeBucket, getTimeBuckets, type AssetResponseDto } from '@immich/sdk';
-import createJustifiedLayout from 'justified-layout';
 import { throttle } from 'lodash-es';
 import { DateTime } from 'luxon';
 import { t } from 'svelte-i18n';
@@ -17,13 +16,6 @@ import { websocketEvents } from './websocket';
 
 type AssetApiGetTimeBucketsRequest = Parameters<typeof getTimeBuckets>[0];
 export type AssetStoreOptions = Omit<AssetApiGetTimeBucketsRequest, 'size'>;
-
-const LAYOUT_OPTIONS = {
-  boxSpacing: 2,
-  containerPadding: 0,
-  targetRowHeightTolerance: 0.15,
-  targetRowHeight: 235,
-};
 
 export interface Viewport {
   width: number;
@@ -96,7 +88,7 @@ export class AssetBucket {
     const rows = this.dateGroups.slice().pop()?.row || -1;
     for (let i = 0, j = 0; i <= rows; i++) {
       let group = this.dateGroups[j];
-      let groupHeight = group.geometry.containerHeight;
+      const groupHeight = group.geometry.containerHeight;
       while (group && group.row === i) {
         j++;
         group = this.dateGroups[j];
@@ -112,7 +104,7 @@ export class AssetBucket {
     const rows = this.dateGroups.slice().pop()?.row || 0;
     for (let i = 0, j = 0; i <= rows; i++) {
       let cummulativeWidth = 0;
-      let widths: number[] = [];
+      const widths: number[] = [];
       let group = this.dateGroups[j];
 
       while (group && group.row === i) {
@@ -186,7 +178,7 @@ export class AssetBucket {
     for (let dateGroupIndex = 0; dateGroupIndex < this.dateGroups.length; dateGroupIndex++) {
       const dateGroup = this.dateGroups[dateGroupIndex];
       const assetIndex = dateGroup.assets.findIndex((asset) => asset.id === assetId);
-      if (assetIndex >= 0) {
+      if (assetIndex !== -1) {
         const asset = dateGroup.assets[assetIndex];
         return {
           asset,
@@ -364,14 +356,14 @@ export class AssetStore {
   firstIntersectingBucket = $state();
 
   private listeners: BucketListener[] = [];
-  private getJustifiedLayoutFromAssets: GetJustifiedLayout | undefined;
+  getJustifiedLayoutFromAssets: GetJustifiedLayout | undefined;
 
   constructor(
     options: AssetStoreOptions,
     private albumId?: string,
   ) {
     this.setOptions();
-    this.updateOptions({ ...options });
+    void this.updateOptions({ ...options });
   }
 
   private setOptions(options?: AssetStoreOptions) {
@@ -452,10 +444,9 @@ export class AssetStore {
 
     let firstIntersected;
 
-    for (let i = 0; i < heights.length; i++) {
+    for (const [i, bucketTop] of heights.entries()) {
       const bucket = this.buckets[i];
-      const bucketTop = heights[i];
-      const bucketBottom = heights[i] + bucket.bucketHeight;
+      const bucketBottom = bucketTop + bucket.bucketHeight;
 
       if (bucketTop < this.visibleWindow.bottom && bucketBottom > this.visibleWindow.top) {
         bucket.intersecting = true;
@@ -463,25 +454,19 @@ export class AssetStore {
           firstIntersected = bucket.bucketDate;
         }
 
-        this.loadBucket(bucket.bucketDate);
+        void this.loadBucket(bucket.bucketDate);
         const dateGroups = bucket.dateGroups;
-        let v = 0;
 
         for (const [h, group] of dateGroups.entries()) {
           const positions = bucket.dateGroupsAssetsAbsolutePositions[h];
           for (let j = 0; j < group.assets.length; j++) {
             const assetTop = positions[j].top;
             const assetBottom = positions[j].bottom;
-
-            if (assetBottom > this.visibleWindow.top && assetTop < this.visibleWindow.bottom) {
-              group.assetsIntersecting[j] = true;
-            } else {
-              group.assetsIntersecting[j] = false;
-            }
+            group.assetsIntersecting[j] = assetBottom > this.visibleWindow.top && assetTop < this.visibleWindow.bottom ? true : false;
           }
 
-          group.intersecting = group.assetsIntersecting.some((i) => i === true);
-          v++;
+          group.intersecting = group.assetsIntersecting.includes(true);
+
         }
       } else {
         bucket.intersecting = false;
@@ -585,7 +570,7 @@ export class AssetStore {
     if (firstBucket) {
       await this.loadBucket(firstBucket.bucketDate, { preventCancel: true });
     }
-    this.updateViewportGeometry(false);
+    await this.updateViewportGeometry(false);
     this.initializedSignal?.();
   }
 
@@ -685,7 +670,7 @@ export class AssetStore {
     let dateGroupRow = 0;
     let dateGroupCol = 0;
 
-    const rowSpaceRemaining: number[] = new Array(bucket.dateGroups.length);
+    const rowSpaceRemaining: number[] = Array.from({ length: bucket.dateGroups.length });
     rowSpaceRemaining.fill(viewportWidth, 0, bucket.dateGroups.length);
     for (const assetGroup of bucket.dateGroups) {
       if (!assetGroup.heightActual) {
@@ -716,7 +701,7 @@ export class AssetStore {
       lastRowHeight = assetGroup.geometry.containerHeight + HEADER;
       assetGroup.height = assetGroup.geometry.containerHeight;
     }
-    if (lastRow !== bucket.dateGroups[bucket.dateGroups.length - 1].row) {
+    if (lastRow !== bucket.dateGroups.at(-1).row) {
       cummulativeHeight += lastRowHeight;
     }
     bucket.bucketHeight = cummulativeHeight;

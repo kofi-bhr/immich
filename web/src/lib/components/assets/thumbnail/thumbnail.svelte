@@ -23,11 +23,7 @@
   import VideoThumbnail from './video-thumbnail.svelte';
   import { currentUrlReplaceAssetId } from '$lib/utils/navigation';
   import { AssetStore } from '$lib/stores/assets-store.svelte';
-
   import type { DateGroup } from '$lib/utils/timeline-util';
-
-  import { generateId } from '$lib/utils/generate-id';
-  import { onDestroy } from 'svelte';
   import { TUNABLES } from '$lib/utils/tunables';
   import { thumbhash } from '$lib/actions/thumbhash';
 

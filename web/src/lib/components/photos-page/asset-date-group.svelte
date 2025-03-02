@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from '$lib/components/elements/icon.svelte';
 
-  import { AssetBucket, type AssetStore, type Viewport } from '$lib/stores/assets-store.svelte';
+  import { AssetBucket } from '$lib/stores/assets-store.svelte';
   import { navigate } from '$lib/utils/navigation';
   import type { AssetResponseDto } from '@immich/sdk';
   import { mdiCheckCircle, mdiCircleOutline } from '@mdi/js';
@@ -143,7 +143,6 @@
           {@const height = geometry.getHeight(i)}
 
           {@const displayAsset = dateGroup.assetsIntersecting[i]}
-          {@const row = dateGroup.row}
 
           <!-- update ASSET_GRID_PADDING-->
           {#if displayAsset}

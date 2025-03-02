@@ -8,13 +8,11 @@
   import type { Viewport } from '$lib/stores/assets-store.svelte';
   import { showDeleteModal } from '$lib/stores/preferences.store';
   import { deleteAssets } from '$lib/utils/actions';
-  import { archiveAssets, cancelMultiselect, getAssetRatio } from '$lib/utils/asset-utils';
+  import { archiveAssets, cancelMultiselect } from '$lib/utils/asset-utils';
   import { featureFlags } from '$lib/stores/server-config.store';
   import { handleError } from '$lib/utils/handle-error';
   import { navigate } from '$lib/utils/navigation';
-  import { calculateWidth } from '$lib/utils/timeline-util';
   import { type AssetResponseDto } from '@immich/sdk';
-  import justifiedLayout from 'justified-layout';
   import { t } from 'svelte-i18n';
   import AssetViewer from '../../asset-viewer/asset-viewer.svelte';
   import ShowShortcuts from '../show-shortcuts.svelte';
@@ -22,7 +20,6 @@
   import { handlePromiseError } from '$lib/utils';
   import DeleteAssetDialog from '../../photos-page/delete-asset-dialog.svelte';
   import type { AssetInteraction } from '$lib/stores/asset-interaction.svelte';
-  import { resizeObserver } from '$lib/actions/resize-observer';
   import { debounce } from 'lodash-es';
 
   interface Props {
@@ -61,7 +58,7 @@
   $effect(() => {
     const _assets = assets;
     updateSlidingWindow();
-    layoututils.then(({ getJustifiedLayoutFromAssets }) => {
+    void layoututils.then(({ getJustifiedLayoutFromAssets }) => {
       geometry = getJustifiedLayoutFromAssets(_assets, {
         spacing: 2,
         heightTolerance: 0.15,
@@ -78,9 +75,7 @@
     if (geometry) {
       containerHeight = geometry.containerHeight;
       containerWidth = geometry.containerWidth;
-      for (let i = 0; i < assets.length; i++) {
-        const asset = assets[i];
-
+      for (const [i, asset] of assets.entries()) {
         const layout = {
           asset,
           top: geometry.getTop(i),

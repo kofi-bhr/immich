@@ -9,8 +9,8 @@ export type GetJustifiedLayout = typeof getJustifiedLayoutFromAssets;
 type Geometry = ReturnType<typeof createJustifiedLayout>;
 
 let useWasm = TUNABLES.LAYOUT.WASM;
-export function setWasm(useWasm: boolean) {
-  useWasm = useWasm;
+export function setWasm(wasm: boolean) {
+  useWasm = wasm;
 }
 export function getJustifiedLayoutFromAssets(assets: AssetResponseDto[], options: LayoutOptions) {
   if (useWasm) {
