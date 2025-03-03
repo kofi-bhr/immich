@@ -233,6 +233,7 @@
     return tagNames.join(', ');
   }
 
+  // eslint-disable-next-line no-self-assign
   const triggerAssetUpdate = () => (searchResultAssets = searchResultAssets);
 
   const onAddToAlbum = (assetIds: string[]) => {

@@ -67,7 +67,7 @@
 </script>
 
 <section id="measure-asset-group-by-date" class="flex flex-wrap gap-x-12" use:measure>
-  {#each bucket.dateGroups as dateGroup}
+  {#each bucket.dateGroups as dateGroup (dateGroup.date)}
     <div id="date-group" data-date-group={dateGroup.date}>
       <div use:resizeObserver={({ height }) => assetStore.updateBucketDateGroup(bucket, dateGroup, { height })}>
         <div
@@ -81,32 +81,11 @@
 
         <div
           class="relative overflow-clip"
-          id="skeleton"
           style:height={dateGroup.geometry!.containerHeight + 'px'}
           style:width={dateGroup.geometry!.containerWidth + 'px'}
-          style:visibility={'hidden'}
+          style:visibility="hidden"
         ></div>
       </div>
     </div>
   {/each}
 </section>
-
-<style>
-  #skeleton {
-    background-image: url('/light_skeleton.png');
-    background-repeat: repeat;
-    background-size: 235px, 235px;
-  }
-  :global(.dark) #skeleton {
-    background-image: url('/dark_skeleton.png');
-  }
-  @keyframes delayedVisibility {
-    to {
-      visibility: visible;
-    }
-  }
-  #skeleton {
-    visibility: hidden;
-    animation: 0s linear 0.1s forwards delayedVisibility;
-  }
-</style>

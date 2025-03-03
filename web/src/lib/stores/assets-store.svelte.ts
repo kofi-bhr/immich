@@ -1,7 +1,7 @@
 import { locale } from '$lib/stores/preferences.store';
 import { getKey } from '$lib/utils';
 import { generateId } from '$lib/utils/generate-id';
-import type { GetJustifiedLayout } from '$lib/utils/layout-utils';
+import { type getJustifiedLayoutFromAssetsFunction } from '$lib/utils/layout-utils';
 import type { AssetGridRouteSearchParams } from '$lib/utils/navigation';
 import { fromLocalDateTime, splitBucketIntoDateGroups, type DateGroup } from '$lib/utils/timeline-util';
 import { TimeBucketSize, getAssetInfo, getTimeBucket, getTimeBuckets, type AssetResponseDto } from '@immich/sdk';
@@ -12,6 +12,8 @@ import { SvelteSet } from 'svelte/reactivity';
 import { get, writable, type Unsubscriber } from 'svelte/store';
 import { handleError } from '../utils/handle-error';
 import { websocketEvents } from './websocket';
+
+let getJustifiedLayoutFromAssets: getJustifiedLayoutFromAssetsFunction;
 
 type AssetApiGetTimeBucketsRequest = Parameters<typeof getTimeBuckets>[0];
 export type AssetStoreOptions = Omit<AssetApiGetTimeBucketsRequest, 'size'>;
@@ -355,7 +357,6 @@ export class AssetStore {
   firstIntersectingBucket = $state();
 
   private listeners: BucketListener[] = [];
-  getJustifiedLayoutFromAssets: GetJustifiedLayout | undefined;
 
   constructor(
     options: AssetStoreOptions,
@@ -538,13 +539,14 @@ export class AssetStore {
     if (this.isInitialized) {
       throw 'Can only init once';
     }
+    if (!getJustifiedLayoutFromAssets) {
+      const module = await import('$lib/utils/layout-utils');
+      getJustifiedLayoutFromAssets = module.getJustifiedLayoutFromAssets;
+    }
 
     if (bucketListener) {
       this.addListener(bucketListener);
     }
-    // TODO: move this import and make this method sync after https://github.com/sveltejs/kit/issues/7805 is fixed
-    const { getJustifiedLayoutFromAssets } = await import('$lib/utils/layout-utils');
-    this.getJustifiedLayoutFromAssets = getJustifiedLayoutFromAssets;
     await this.initialiazeTimeBuckets();
   }
 
@@ -677,7 +679,7 @@ export class AssetStore {
         const height = rows * THUMBNAIL_HEIGHT;
         assetGroup.height = height;
       }
-      assetGroup.geometry = this.getJustifiedLayoutFromAssets!(assetGroup.assets, layoutOptions);
+      assetGroup.geometry = getJustifiedLayoutFromAssets!(assetGroup.assets, layoutOptions);
       rowSpaceRemaining[dateGroupRow] -= assetGroup.geometry.containerWidth - 1;
       if (dateGroupCol > 0) {
         rowSpaceRemaining[dateGroupRow] -= GAP;

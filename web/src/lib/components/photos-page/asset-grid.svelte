@@ -74,6 +74,7 @@
 
   let { isViewing: showAssetViewer, asset: viewingAsset, preloadAssets, gridScrollTarget } = assetViewingStore;
 
+  const viewport: ViewportXY = $state({ width: 0, height: 0, x: 0, y: 0 });
   const safeViewport: ViewportXY = $state({ width: 0, height: 0, x: 0, y: 0 });
 
   let element: HTMLElement | undefined = $state();
@@ -92,9 +93,24 @@
   let bottomSectionHeight = 60;
   let leadout = $state(false);
 
-  // const {
-  //   ASSET_GRID: { NAVIGATE_ON_ASSET_IN_VIEW },
-  // } = TUNABLES;
+  const {
+    ASSET_GRID: { NAVIGATE_ON_ASSET_IN_VIEW },
+    BUCKET: {
+      INTERSECTION_ROOT_TOP: BUCKET_INTERSECTION_ROOT_TOP,
+      INTERSECTION_ROOT_BOTTOM: BUCKET_INTERSECTION_ROOT_BOTTOM,
+    },
+    THUMBNAIL: {
+      INTERSECTION_ROOT_TOP: THUMBNAIL_INTERSECTION_ROOT_TOP,
+      INTERSECTION_ROOT_BOTTOM: THUMBNAIL_INTERSECTION_ROOT_BOTTOM,
+    },
+  } = TUNABLES;
+
+  const isViewportOrigin = () => {
+    return viewport.height === 0 && viewport.width === 0;
+  };
+  const isEqual = (a: ViewportXY, b: ViewportXY) => {
+    return a.height == b.height && a.width == b.width && a.x === b.x && a.y === b.y;
+  };
 
   const completeNav = async () => {
     navigating = false;
@@ -194,7 +210,6 @@
   };
 
   onMount(() => {
-    updateSafeViewport();
     void assetStore
       .init({ bucketListener })
       .then(() => (assetStore.connect(), assetStore.updateViewport(safeViewport), updateSlidingWindow()));
@@ -209,15 +224,9 @@
     };
   });
 
-  function updateSafeViewport() {
-    if (element) {
-      const rect = element.getBoundingClientRect();
-      safeViewport.height = rect.height;
-      safeViewport.width = rect.width;
-      safeViewport.x = rect.x;
-      safeViewport.y = rect.y;
-    }
-  }
+  const _updateViewport = () => void assetStore.updateViewport(safeViewport);
+  const updateViewport = throttle(_updateViewport, 16);
+
   function getOffset(bucketDate: string) {
     let offset = 0;
     for (let a = 0; a < assetStore.buckets.length; a++) {
@@ -684,6 +693,23 @@
     }
   });
 
+  $effect(() => {
+    if (element && isViewportOrigin()) {
+      const rect = element.getBoundingClientRect();
+      viewport.height = rect.height;
+      viewport.width = rect.width;
+      viewport.x = rect.x;
+      viewport.y = rect.y;
+    }
+    if (!isViewportOrigin() && !isEqual(viewport, safeViewport)) {
+      safeViewport.height = viewport.height;
+      safeViewport.width = viewport.width;
+      safeViewport.x = viewport.x;
+      safeViewport.y = viewport.y;
+      updateViewport();
+    }
+  });
+
   let shortcutList = $derived(
     (() => {
       if ($isSearchEnabled || $showAssetViewer) {
@@ -766,26 +792,7 @@
   id="asset-grid"
   class="scrollbar-hidden h-full overflow-y-auto outline-none {isEmpty ? 'm-0' : 'ml-4 tall:ml-0 mr-[60px]'}"
   tabindex="-1"
-  use:resizeObserver={() => {
-    void updateSafeViewport();
-    void assetStore.updateViewport(safeViewport);
-
-    // if (!largeBucketMode && assetStore.maxBucketAssets >= LARGE_BUCKET_THRESHOLD) {
-    //   largeBucketMode = true;
-    //   // Each viewport update causes each asset to re-decode both the thumbhash and the thumbnail.
-    //   // This is because the thumbnail components are destroyed and re-mounted, possibly because of the intersection observer.
-    //   // For larger buckets, this can lead to freezing and a poor user experience.
-    //   // As a mitigation, we aggressively debounce the viewport update to reduce the number of these events.
-    //   updateViewport = debounce(() => assetStore.updateViewport(safeViewport), LARGE_BUCKET_DEBOUNCE_MS, {
-    //     leading: false,
-    //     trailing: true,
-    //   });
-    // }
-
-    // safeViewport = { width, height, x: safeViewport.x, y: safeViewport.y };
-
-    // void updateViewport();
-  }}
+  use:resizeObserver={({ height, width }) => ((viewport.width = width), (viewport.height = height))}
   bind:this={element}
   onscroll={() => ((assetStore.lastScrollTime = Date.now()), handleTimelineScroll(), updateSlidingWindow())}
 >
